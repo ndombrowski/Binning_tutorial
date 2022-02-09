@@ -1,6 +1,6 @@
 # Binning
 
-Tutorial to generate bins. The html version can be found [here](https://ndombrowski.github.io/Binning/index.html).
+Tutorial to generate bins. The html version can be found [here](https://ndombrowski.github.io/Binning_tutorial//index.html).
 
 The goal of this tutorial is to: 
 
