@@ -3,7 +3,7 @@ title: "Notebook for binning"
 author: "Nina Dombrowski"
 affiliation: "NIOZ"
 date: "`r Sys.Date()`"
-knit: (function(input_file, encoding) {out_dir <- 'docs';rmarkdown::render(input_file,encoding=encoding,output_file=file.path(dirname(input_file), out_dir, 'Binning_tutorial_mod.html'))})
+knit: (function(input_file, encoding) {out_dir <- 'docs';rmarkdown::render(input_file,encoding=encoding,output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 output:
   rmdformats::readthedown:
     highlight: kate
@@ -119,12 +119,17 @@ First lets change our directory to where we work. Exchange the path to where you
 For this to work, change the file path, to where you downloaded and want to work with the data.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
+
+#set a variable to the directory from which we want to wor
+wdir="/export/lv3/scratch/workshop_2021/Users/NDombrowski/test"
+
+#go to our working directory
+cd $wdir
+
 #download the data
 curl "https://zenodo.org/record/4680187/files/0_assembly_and_reads.tar.gz?download=1" --output 0_assembly_and_reads.tar.gz
-curl "https://zenodo.org/record/4680187/files/1_mapping.tar.gz?download=1" --output 1_mapping.tar.gz
 
-#set a symbolic link to where you downloaded the data
-wdir="/export/lv3/scratch/workshop_2021/Users/NDombrowski/test"
+curl "https://zenodo.org/record/4680187/files/1_mapping.tar.gz?download=1" --output 1_mapping.tar.gz
 
 #unzip the data
 tar xvzf 0_assembly_and_reads.tar.gz
@@ -135,8 +140,9 @@ gzip -d 1_mapping/NIOZ1*/*gz
 
 #prepare custom scripts
 mkdir scripts
-wget https://raw.githubusercontent.com/ndombrowski/Binning/master/scripts/length%2BGC.pl -O scripts/length+GC.pl
-wget https://raw.githubusercontent.com/ndombrowski/Binning/master/scripts/rename.pl -O scripts/rename.pl
+wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/master/scripts/length%2BGC.pl -O scripts/length+GC.pl
+
+wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/master/scripts/rename.pl -O scripts/rename.pl
 
 ```
 
