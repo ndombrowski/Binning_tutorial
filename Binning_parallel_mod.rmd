@@ -71,6 +71,15 @@ For this tutorial we work with assemblies (and the raw reads) from 3 metagenomes
 
 If you generate your own assembly, we strongly recommend that your contigs have a consistent naming format. The format we assume for this workflow is `NIOZ114_sc105_1`. Ideally have a short and concice header that includes the sampleID and no other symbols than underscores.
 
+<span style="color:red;font-size:20px">**Notice for this workshop:**</span>
+
+Unfortunately, DAS Tool is not installed on the cluster. As a workaround we will provide two options:
+
+1. All the output data is provided in the zenodo repository found [here](https://zenodo.org/deposit/6518160) . Specifically, you can download the folder Example_Data.tar.gz and have a look at how the output from DAS Tool looks like in the folder 3_DASTool and use the files in 4_FinalBins to finish with the last small steps summarizing the genome statistics.
+2. You can download the tool itself [here](https://github.com/cmks/DAS_Tool) and the installation instruction can be found further down in the documentation when you follow the link. From the test I ran on my Mac, the conda install did not work, but the brew and docker installs look good. If you use the docker setup you might just need to run the program 3 times for each of the 3 assemblies instead of using the for-loop.
+
+
+
 **General info on this tutorial**
 
 - `r text_spec("grey box.", background = "#BEBEBE", color = "black", bold = F)` : The code that we want to execute
@@ -111,7 +120,6 @@ All of these tools are pre-installed on the NIOZ servers, you only have to set t
 13. GTDBtk  v0.3.2
 14. rename from util-linux 2.23.2
 15. join (GNU coreutils) 8.22
-
 
 
 
@@ -1310,6 +1318,13 @@ gtdbtk classify_wf --genome_dir 4_FinalBins/renamed --out_dir 6_Gtdbtk --cpus 2
 conda deactivate
 ```
 
+The key information we get should look something like this:
+
+```{r, echo=FALSE, fig.cap="", out.width = '100%', fig.align="left"}
+knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pictures/Annotations18.png")
+```
+
+
 **Question**:
 
 - What taxa are our MAGs assigned to?
@@ -1417,7 +1432,7 @@ awk 'BEGIN{OFS="\t"}FNR==NR{a[$1]=$0;next}{print $0,a[$1]}' 1_mapping/AllSamples
 #control that the nr of lines is ok --> should be around 875
 wc -l 7_Stats/temp3
 
-#subset data to only include relecant info and remove the variance info
+#subset data to only include relevant info and remove the variance info
 awk '{for(x=1;x<=NF;x++) if(x <= 5 || (x >=9 && x % 2)) printf "%s", $x (x == NF || x == (NF-1) ? "\n":"\t")}' 7_Stats/temp3 > 7_Stats/temp4
 
 #clean up the header names
@@ -1468,7 +1483,7 @@ less -S 7_Stats/bin_stats_final.txt
 
 ```
 
-This final dataframes combines all the data we have looked at before and contains:
+This final data frames combines all the data we have looked at before and contains:
 
 - the bin stats (the ones we calculated as well as the CheckM results)
 - the results from gtdb
