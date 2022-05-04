@@ -69,6 +69,8 @@ The goal of this tutorial is to:
 
 For this tutorial we work with assemblies (and the raw reads) from 3 metagenomes. The reason to include more than one metagenome is that most binning tools take into account sequence information as well as coverage information, which make use of having data from several metagenomes (i.e. depth profiles in our case).
 
+If you generate your own assembly, we strongly recommend that your contigs have a consistent naming format. The format we assume for this workflow is `NIOZ114_sc105_1`. Ideally have a short and concice header that includes the sampleID and no other symbols than underscores.
+
 **General info on this tutorial**
 
 - `r text_spec("grey box.", background = "#BEBEBE", color = "black", bold = F)` : The code that we want to execute
@@ -105,8 +107,10 @@ All of these tools are pre-installed on the NIOZ servers, you only have to set t
 9. concoct v1.1.0
 10. Binsanity v0.2.6.4
 11. DASTool v1.1.0
-12. rename from util-linux 2.23.2
-13. join (GNU coreutils) 8.22
+12. CheckM v1.0.11 
+13. GTDBtk  v0.3.2
+14. rename from util-linux 2.23.2
+15. join (GNU coreutils) 8.22
 
 
 
@@ -119,9 +123,8 @@ First lets change our directory to where we work. Exchange the path to where you
 For this to work, change the file path, to where you downloaded and want to work with the data.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
-
 #set a variable to the directory from which we want to wor
-wdir="/export/lv3/scratch/workshop_2021/Users/NDombrowski/test"
+wdir="/export/lv1/user/ndombrowski/Mai_testing"
 
 #go to our working directory
 cd $wdir
@@ -143,10 +146,9 @@ mkdir scripts
 wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/master/scripts/length%2BGC.pl -O scripts/length+GC.pl
 
 wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/master/scripts/rename.pl -O scripts/rename.pl
-
 ```
 
-Now, lets prepare a working directory:
+Now, lets prepare a working directory and go into it and work from there:
 
 ```{bash class.source = 'fold-show', eval=FALSE}
 #make a folder for the binning tutorial
@@ -161,6 +163,8 @@ cd Binning_workflow
 
 ## Prepare files that lists the metagenomes we want to loop through
 ######################
+
+First, we prepare a file that lists with what samples we work with. In our case we work with assemblies that were generated from three metagenomes coming from samples called NIOZ114, NIOZ118 and NIOZ130.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
 #prepare folder
@@ -179,17 +183,17 @@ NIOZ118
 NIOZ130
 ```
 
-Save and close nano.
+Save and close nano (by pressing control + X).
 
-Next we need to prepare another mapping file: 
-For the binning, we want to know for each assembly how abundant each contig is in our 3 metagenomes, we need to match up all possible 9 interactions. We can make a list of this as well to make our things easier for us.
+Next we need to prepare another mapping file: <br><br>
+For the binning process, we want to know for each assembly how abundant each contig is in our 3 metagenomes. Therefore, we make a table with two columns that lists all possible 9 interactions. We can make a list of this as well to make our things easier for us.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
 #prepare a file with matching samples
-nano FileLists/Samples_matching
+awk -F'\t' -v OFS='\t' '{ a[$0] }END {for (i in a){for (j in a){ print (i, j)}}}' FileLists/Samples | sort > FileLists/Samples_matching
 ```
 
-FileLists/Samples_matching should look like this (tab separated). 
+The file we generated should look like this (tab separated). 
 
 ```
 NIOZ114 NIOZ114
@@ -212,27 +216,19 @@ NIOZ130 NIOZ130
 ###################################################################################
 ###################################################################################
 
-## Important info, please read!
-######################
-
-<div class="alert-danger">
-The mapping step takes a lot of time and the data from the read mapping is rather large. Therefore, the data is prepared for you and you just need to add a symbolic link. After the tutorial feel free to run the code under #create 1_mapping files but watch the resources on your cluster before doing so. <br/><br/>
-
-More specifically, you only need to run code that does NOT start with an `#`.  <br/><br/>
-
-For now we will provide the assembly and the read mapping data.  <br/><br/>
-
-This means that for now the assembly we will use the assembly that is found in this folder: `../0_assembly_and_reads/2_assembly/`. <br/><br/>
-
-
-</div>
-
-
-
 ## Map the reads
 ######################
 
-You do not need to run this for this tutorial, we provide the data. The sam files are not provided as they are very large but they can be generated with the code below if you remove the hash.
+<span style="color:red;font-size:20px">**Important info, please read!**</span>
+
+<div class="alert-danger">
+The mapping step takes a lot of time and the data from the read mapping is rather large. <br> Therefore, you will not run the read mapping step with `bwa mem` yourself, but use the data you have downloaded from the repository in the first steps. After the tutorial feel free to run the code under #create 1_mapping files but watch the resources on your cluster before doing so. <br/><br/>
+
+More specifically, you only need to run code that does NOT start with an `#` and the assembly and read mapping data is provided by us. <br/><br/>
+
+If you want to have a look at the data, they can be found in this folder: `../0_assembly_and_reads/2_assembly/`. <br/><br/>
+</div>
+
 
 ```{bash class.source = 'fold-show', eval=FALSE}
 #create an index for our assemblies
@@ -245,10 +241,9 @@ for i in `cat FileLists/Samples`; do mkdir 1_mapping/$i; done
 
 #create 1_mapping files (just do this on your own time, not during the actual exercise)
 #while read sample1 sample2; do bwa mem -t 10 ../0_assembly_and_reads/2_assembly/${sample1}/${sample1}_contigs_2500.fna ../0_assembly_and_reads/1_reads/${sample2}_R1_paired.fastq.gz ../0_assembly_and_reads/1_reads/${sample2}_R2_paired.fastq.gz | gzip -3 >  1_mapping/${sample1}/${sample1}_v_${sample2}.sam.gz; done < FileLists/Samples_matching
-
 ```
 
-For each metagenome we have one folder, each containing three files:
+For each metagenome the step `bwa mem`, would generate a folder, each containing three files:
 
 ```{r fig1, echo=FALSE, fig.cap="", out.width = '60%', fig.align="left"}
 knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pictures/binning1.png")
@@ -306,12 +301,13 @@ If we look at our files, the header should look like shown below and defines rea
 
 Next, we want to convert the file type from sam to bam and count how many reads are recruited by each contig with samtools. The bam format is a compressed output of the sam format and helpful for storing sam files and getting information of the reads. 
 
-Your job starts here!
+**Your job starts here!**
 
-We provide you the indexed samfiles, your first step will be to count how many reads were mapped.
+We provide you the indexed samfiles that are normally created with the step `#create bam files and make index` in the folder you downloaded. To access them we generate a symbolic link via the `ln` command. A symbolic link is a special type of file that points to another file or directory, without us having to duplicate data.
+
+After generating the link our first step will be to count how many reads were mapped.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
-
 #change folder
 cd 1_mapping
 
@@ -401,7 +397,7 @@ dev.off()
 #exit
 quit()
 
-#view plot
+#view plot (you might need to use a tool specific to your system to view the png)
 xdg-open 1_mapping/NIOZ114_sc1105_1.png 
 ```
 
@@ -414,37 +410,36 @@ If you run this, you would see something like this:
 We can see first that:
 
 - we do have quite some variability (we provided a link that discusses the issues above) 
-- Especially the ends of a contig have a bad coverage. This might have to do with loosing the read pairs or that this region might have an abnormal coverage due to genetic differences (i.e. we might hit a repeat region). This also explains, why the contig beraks at this point --> there are no reads that cover the end of the contig with another contig. 
+- Especially the ends of a contig have a low coverage. This might have to do with loosing the read pairs or that this region might have an abnormal coverage due to genetic differences (i.e. we might hit a repeat region). This also explains, why the contig beraks at this point --> there are no reads that cover the end of the contig with another contig. 
 
 Generally, it is good to keep in mind that aligners are not good in aligning only partial reads, so we will loose a lot of reads at the ends due to that. 
 
 
 **Homework**
 
-- Rerun the counting but include the unmapped reads (remember to change the flags, to select what reads you want to exclude or to include). Open the mapping summary and check what the difference is compared to when we discarded the reads.
+If you run the full workflow and generate the your own bam files: Try to generate a file that includes also the the unmapped reads (remember to change the flags, to select what reads you want to exclude or to include). Open the mapping summary and check what the difference is compared to when we discarded the reads.
+
+<div id="spoilerA" style="display:none">
+You can do this by removing the -F4 flag in the command `samtools view`.<br/><br/>
+
+First our file should have looked like this:<br/>NIOZ114_sc48_1&nbsp;&nbsp;&nbsp;&nbsp;3180&nbsp;&nbsp;&nbsp;&nbsp;476&nbsp;&nbsp;&nbsp;&nbsp;0. <br/><br/>Now, we get this:<br/>NIOZ114_sc48_1&nbsp;&nbsp;&nbsp;&nbsp;3180&nbsp;&nbsp;&nbsp;&nbsp;476&nbsp;&nbsp;&nbsp;&nbsp;2. <br/><br/>Unmapped reads are given the mapping coordinates of their mapped mate, which means that of the forward and reverse reads in two cases only one of the two mapped. This could be a mapping error or the mapped read is of the end of our contig and during the assembly we were not able to get a longer contig that also would have included the other pair
+
+</div>
+
+<button title="Click to show answer" type="button"
+   onclick="if(document.getElementById('spoilerA') .style.display=='none')
+              {document.getElementById('spoilerA') .style.display=''}
+            else{document.getElementById('spoilerA') .style.display='none'}">
+  Show/hide
+</button>
+<br/><br/>
 
 
-[You can do this by removing the -F4 flag.<br/><br/>First our file should have looked like this:<br/>NIOZ114_sc48_1&nbsp;&nbsp;&nbsp;&nbsp;3180&nbsp;&nbsp;&nbsp;&nbsp;476&nbsp;&nbsp;&nbsp;&nbsp;0. <br/><br/>Now, we get this:<br/>NIOZ114_sc48_1&nbsp;&nbsp;&nbsp;&nbsp;3180&nbsp;&nbsp;&nbsp;&nbsp;476&nbsp;&nbsp;&nbsp;&nbsp;2. <br/><br/>Unmapped reads are given the mapping coordinates of their mapped mate, which means that of the forward and reverse reads in two cases only one of the two mapped. This could be a mapping error or the mapped read is of the end of our contig and during the assembly we were not able to get a longer contig that also would have included the other pair.]{.spoiler}
-
-```{r class.source = 'fold-hide', eval=FALSE}
-
-First our file should have looked like this:
-NIOZ114_sc48_1  3180    476     0
-
-Now, we get this:
-NIOZ114_sc48_1  3180    476     2
-
-
-The only difference is that we now get a number in the column for the unmapped reads but what does this mean?
-
-Unmapped reads are given the mapping coordinates of their mapped mate, which means that of the forward and reverse reads in two cases only one of the two mapped. This could be a mapping error or the mapped read is of the end of our contig and during the assembly we were not able to get a longer contig that also would have included the other pair.
-
-```
 
 ## Create depth files
 ######################
 
-The depth files summarize the data for all metagenomes into one file using the script `jgi_summarize_bam_contig_depths`. This script will also is do some normalization of the reads.
+Next, we generate so called depth files using the script `jgi_summarize_bam_contig_depths`. The depth files summarize the data for all metagenomes into one file. This script will also is do some normalization of the reads.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
 #create depth file (we will use this to run 2_binning via metabat)
@@ -452,7 +447,6 @@ for i in `cat FileLists/Samples`; do jgi_summarize_bam_contig_depths --outputDep
 
 #check the file generated
 head 1_mapping/NIOZ114/NIOZ114_depth_metabat.txt
-
 ```
 
 The file we generate looks like this and contains:
@@ -473,13 +467,13 @@ knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pict
 
 **Info on the used code**:
 
-jgi_summarize_bam_contig_depths (part of the metabat package) normalizes the output of depth coverages by contig length and total number of reads as well as includes a correction of the raw count by a number of factors to give a more realistic metric considering the nature of reads, errors, and strain variations present in the data and samples. 
+jgi_summarize_bam_contig_depths (part of the [MetaBAT](https://bitbucket.org/berkeleylab/metabat/src/master/) package) normalizes the output of depth coverages by contig length and total number of reads as well as includes a correction of the raw count by a number of factors to give a more realistic metric considering the nature of reads, errors, and strain variations present in the data and samples: 
 
-- (1) The edges of a contig are generally excluded from the coverage counts up to a default of 75 bases or the average read length (--includeEdgeBases, --maxEdgeBases). This is because, generally mappers have a difficult time aligning a partial read to a contig when it would extend off edge and the coverage ramps up from 0 to the true coverage in this region. 
-- (2) reads that map imperfectly are excluded when the %ID of the mapping drops below a threshold (--percentIdentity=97). MetaBAT is designed to resolve strain variation and mapping reads with low %ID indicate that the read actually came from a different strain/species. 
-- (3) clips/insertions/deletions/mismatches are excluded from the coverage count -- only the read bases that exactly match the reference are counted as coverage. 
+- The edges of a contig are generally excluded from the coverage counts up to a default of 75 bases or the average read length (--includeEdgeBases, --maxEdgeBases). This is because, generally mappers have a difficult time aligning a partial read to a contig when it would extend off edge and the coverage ramps up from 0 to the true coverage in this region. 
+- Reads that map imperfectly are excluded when the %ID of the mapping drops below a threshold (--percentIdentity=97). MetaBAT is designed to resolve strain variation and mapping reads with low %ID indicate that the read actually came from a different strain/species. 
+- Clips/insertions/deletions/mismatches are excluded from the coverage count -- only the read bases that exactly match the reference are counted as coverage. 
 
-A comment on why we do not use the output from samtools that we have used before from the tool developer: We specifically do not use samtools depth because it does not generate a great estimate of the relative abundance that metabat requires for good separation of samples. When a contig base has 0 coverage, then samtools depth neglects to report that, throwing off some calcualtions and when a read poorly maps samtools depth does count it, again foiling some of the species and strain variation nuances.
+A comment on why we do not use the output from samtools that we have used before from the tool developer: We specifically do not use samtools depth because it does not generate a great estimate of the relative abundance that MetaBAT requires for good separation of samples. When a contig base has 0 coverage, then samtools depth neglects to report that, throwing off some calculations and when a read poorly maps samtools depth does count it, again foiling some of the species and strain variation nuances.
 
 
 
@@ -490,12 +484,12 @@ A comment on why we do not use the output from samtools that we have used before
 ###################################################################################
 ###################################################################################
 
-Different tools generally need different input files. This is also the case for the coverage binners we will use and how the want the coverage info to look like. We will use some bash 
+Different binning tools generally need different input files. This is also the case for the coverage binners we will use and how the want the coverage info to look like. We will use some bash to prepare the depth files for each specific tool.
 
 ## Create a depth file for MetaBAT
 ######################
 
-We already did this above, using `jgi_summarize_bam_contig_depths` 
+The output we generated with `jgi_summarize_bam_contig_depths` is exactly what MetaBAT needs, so we need to do anything here.
 
 
 ## Create a depth file for CONCOCT (using the metabat depth file as input)
@@ -603,6 +597,8 @@ knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pict
 
 Here, we just use our bash powers to make a summary info for each contig that lists the gc, length and coverage info. Having such information in tables is always useful because from experience you will need this at a later point.
 
+For each contig we already provide a file that includes the contig length and contig GC, so we only need to merge this with the depth info we calculated.
+
 ```{bash class.source = 'fold-show', eval=FALSE}
 #combine mapping stats from the different assemblies into one document
 cat 1_mapping/N*/*_depth_maxbin.txt > ../0_assembly_and_reads/2_assembly/AllContigs/All_contigs_2500_depth.txt
@@ -615,7 +611,7 @@ The file contains 1028 rows, which should be consistent with the number of conti
 '''
 
 #merge info on depth and length and GC (files we have generated during the assembly tutorial)
-awk 'BEGIN{OFS="\t"}FNR==NR{a[$1]=$0;next}{print $0,a[$1]}' ../0_assembly_and_reads/2_assembly//AllContigs/All_contigs_2500_depth.txt ../0_assembly_and_reads/2_assembly//AllContigs/All_contigs_2500_length_GC.txt | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' > ../0_assembly_and_reads/2_assembly//AllContigs/All_Contig_info.tsv
+awk 'BEGIN{OFS="\t"}FNR==NR{a[$1]=$0;next}{print $0,a[$1]}' ../0_assembly_and_reads/2_assembly/AllContigs/All_contigs_2500_depth.txt ../0_assembly_and_reads/2_assembly/AllContigs/All_contigs_2500_length_GC.txt | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' > ../0_assembly_and_reads/2_assembly/AllContigs/All_Contig_info.tsv
 
 #add in headers
 echo -e "contigName\tGC\tLength\tAbundanceAcrossSamples" | cat - ../0_assembly_and_reads/2_assembly//AllContigs/All_Contig_info.tsv > ../0_assembly_and_reads/2_assembly//AllContigs/All_Contig_info_header.tsv
@@ -640,7 +636,7 @@ knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pict
 ###################################################################################
 ###################################################################################
 
-Some tools will take a bit longer, so instead of all four we will just test 2 of the 4 binning tools and you can use Concoct and BinSanity on your own if you are interested.
+Some tools will take a bit longer, so instead of using all four we will just test 2 of the 4 binning tools and you can use Concoct and BinSanity on your own if you are interested.
 
 The tools are (in bold are the tools we will use during this tutorial):
 
@@ -670,7 +666,6 @@ mkdir 2_binning
 
 #prepare folder to store the binning results for each metagenome
 for i in `cat FileLists/Samples`; do mkdir 2_binning/$i; done
-
 ```
 
 ## Metabat
@@ -700,7 +695,6 @@ head 2_binning/NIOZ114/Metabat/bins/bins.1.fa
 
 #count number of bins/metagenome
 for i in `cat FileLists/Samples`; do ll 2_binning/${i}/Metabat/bins/*fa | wc -l; done | paste FileLists/Samples -
-
 ```
 
 We have so many bins:
@@ -709,23 +703,19 @@ NIOZ114: 3<br/>
 NIOZ118: 3<br/>
 NIOZ130: 2<br/>
 
-If we look  at the bin name, it is not very informative, i.e. we have bins.1.fa. So in the next step we add some additional information and also make sure in the later steps that for each binning tool we run we generate bin names in a consistent manner. I.e. if some files end with .fa and others with .fasta that is not ideal.
+If we look  at the bin name, it is not very informative, i.e. the name looks something like this:<br> bins.1.fa.<br> <br> 
+So in the next step we add some additional information and also make sure in the later steps that for each binning tool we run we generate bin names in a consistent manner. I.e. if some files end with .fa and others with .fasta, which is not ideal.
 
-Similarily, when we check the file header we should see something like `>NIOZ114_sc464_1`. This is basically the scaffold that was included in a bin. However, it is best to also include a bin ID at a later step, which then would allow to concatenate all genomes for downstream analyses.
+Similarly, when we check the file header we should see something like `>NIOZ114_sc464_1`. This is basically the contig name. However, it is best to also include a bin ID at a later step, which then would allow us to concatenate all genomes for downstream analyses.
 
-In short: Thing about naming as soon as possible in a project.
+In short: Think about naming as soon as possible in a project.
 
-A small comment on pipes:
-
-A pipe is a form of redirection (transfer of standard output to some other destination)
+**A small comment on pipes in bash:**
+A pipe is a form of redirection (transfer of standard output to some other destination). The code block below is doing the same as in `for i in `cat FileLists/Samples`; do ll 2_binning/${i}/Metabat/bins/*fa | wc -l; done | paste FileLists/Samples -` but in astep by step manner.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
-
-#So lets dissect what we did in the last command with the pipes and run it wihout a pipe
-#piped command: for i in `cat FileLists/Samples`; do ll 2_binning/${i}/Metabat/bins/*fa | wc -l; done | paste FileLists/Samples -
-
-#1. lets print the files we generated and store the output in a new file. For each metagenome it stores a list of bins generated
-for i in `cat FileLists/Samples`; do ll 2_binning/${i}/Metabat/bins/*fa.gz > ${i}_temp; done
+#1. lets print the file names we generated and store the output in a new file. For each metagenome it stores a list of bins generated
+for i in `cat FileLists/Samples`; do ll 2_binning/${i}/Metabat/bins/*fa > ${i}_temp; done
 
 #2. lets count the number of bins stored in each bin and make a new list
 for i in `cat FileLists/Samples`; do wc -l ${i}_temp > ${i}_temp2; done
@@ -735,7 +725,6 @@ cat *temp2 > temp3
 
 #add the file names
 paste FileLists/Samples temp3
-
 ```
 
 
@@ -768,15 +757,14 @@ for i in `cat FileLists/Samples`; do cp 2_binning/${i}/Metabat/bins/* 2_binning/
 #cleanup filenames
 for i in `cat FileLists/Samples`; do rename bins. mb_b 2_binning/${i}/Metabat/bins/*fa; done
 
-#check how bins are named now, after our changes
+#check how bins are named now, after our changes, we now should have mb_b1.fa instead of bins.1.fa
 ll 2_binning/NIOZ1*/Metabat/bins/*fa
 
 #check file header
 head 2_binning/NIOZ114/Metabat/bins/mb_b1.fa
 
-#count number of bins/metagenome
+#count number of bins/metagenome (control that all went alright)
 for i in `cat FileLists/Samples`; do ll 2_binning/${i}/Metabat/bins/*fa | wc -l; done | paste FileLists/Samples -
-
 ```
 
 This is a control step to see whether the genomes were renamed correctly. Therefore, the numbers should be exactly the same as in the example above.
@@ -785,22 +773,22 @@ NIOZ114: 3<br/>
 NIOZ118: 3<br/>
 NIOZ130: 2<br/>
 
-If there is some issue and the file names, do not include the binning tool, i.e. you do not have something like `mb_b1.fa`, then 
+If there is some issue and the file names, do not include the binning tool, i.e. you do not have something like `mb_b1.fa`, then double check that the code is correct and what version of `rename` you are using.
 
-We did not yet change the fasta header, this we only do at the final step, after we decided what bins to work with.
+We did not yet change the fasta header yet, this we only do at the final step, after we decided what bins to work with.
 
 ### Prepare a list of contigs - bins and cleanup
 
-We need a list that links the binID with the contigs in each bin (for DAS Tool, which we will use later). Additionally, we will remove some files we do not need any more
+We need a list that links the binID with the contigs in each bin (for DAS Tool, which we will use later). Additionally, we will remove some files we do not need any more.
 
 ```{bash class.source = 'fold-show', eval=FALSE}
-#make contig list
+#make a list that lists for each MAG what contigs were included
 for i in `cat FileLists/Samples`; do awk '/>/{sub(">","&"FILENAME"-");sub(/\.fa/,x)}1' 2_binning/${i}/Metabat/bins/*fa | grep ">" | sed 's/>//g' | awk 'BEGIN{FS="\t";OFS="\t"}{split($1,a,"-")}{print a[2],a[1]}' | awk 'BEGIN{FS="\t";OFS="\t"}{split($2,a,"/")}{print $1,a[5]}' > 2_binning/${i}/Metabat/Metabat_contig_list.txt; done
 
 #check how the contig list looks like
 head 2_binning/NIOZ114/Metabat/Metabat_contig_list.txt 
 
-#rm backup
+#rm backup data
 for i in `cat FileLists/Samples`; do rm -r 2_binning/${i}/Metabat/bins/backup ; done
 
 #gzip fasta files
@@ -810,7 +798,7 @@ for i in `cat FileLists/Samples`; do gzip 2_binning/${i}/Metabat/bins/*fa ; done
 The contig list, which we stored in 2_binning/NIOZ114/Metabat/Metabat_contig_list.txt , should look like this and contain two columns that include:
 
 - All binned contigs (i.e. NIOZ114_sc464_1)
-- Info what bin each contig was assigned (i.e. mb_b1)
+- Info what bin each contig was assigned to (i.e. mb_b1)
 
 
 ```{r fig8, echo=FALSE, fig.cap="", out.width = '30%', fig.align="left"}
@@ -818,13 +806,13 @@ knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pict
 ```
 
 
-When checking these files, make sure that the updated bin name is used, i..e. we want to see something like mb_b1 and nothing generic like bin1.
+When checking these files, make sure that the updated bin name is used, i.e. we want to see something like mb_b1 and nothing generic like bin1.
 
 
 ## Concot
 ######################
 
-`r text_spec("We will NOT run Concoct because the version you would need is not installed globally right now on ada. We will get this added and you can include it later.", background = "#D05A6E", color = "white", bold = T)`
+`r text_spec("We will NOT run Concoct to keep the tutorial short but if you run this on your own data it is advisable to use several binning tools and concoct would be an example of a binner to use.", background = "#D05A6E", color = "white", bold = T)`
 
 
 [CONCOCT](https://github.com/BinPro/CONCOCT) : A program for unsupervised binning of metagenomic contigs by using nucleotide composition, coverage data in multiple samples and linkage data from paired end reads [(Alneberg et al., 2014)](https://www.nature.com/articles/nmeth.3103)
@@ -947,6 +935,8 @@ NIOZ130: 2<br/>
 
 ### Cosmetics: Rename bins
 
+Specifically, we want to remove unwanted symbols, such as dots, and we want the file names to have the extension .fa instead of .fasta.
+
 ```{bash class.source = 'fold-show', eval=FALSE}
 #clean up
 for i in `cat FileLists/Samples`; do mv 2_binning/${i}/Maxbin/*fasta 2_binning/${i}/Maxbin/bins/; done
@@ -955,7 +945,7 @@ for i in `cat FileLists/Samples`; do mv 2_binning/${i}/Maxbin/*fasta 2_binning/$
 for i in `cat FileLists/Samples`; do mkdir 2_binning/${i}/Maxbin/bins/backup ; done
 for i in `cat FileLists/Samples`; do cp 2_binning/${i}/Maxbin/bins/* 2_binning/${i}/Maxbin/bins/backup ; done
 
-#rename
+#rename: instead of mx_b.001.fasta we want sth like: mx_b001.fa
 for i in `cat FileLists/Samples`; do perl ../scripts/rename.pl  "s/mx_b\./mx_b/" 2_binning/${i}/Maxbin/bins/*.fasta; done
 for i in `cat FileLists/Samples`; do rename fasta fa 2_binning/${i}/Maxbin/bins/mx_*; done
 
@@ -1094,10 +1084,13 @@ for i in `cat FileLists/Samples`; do mkdir 3_DASTool/${i}; done
 #run DAS, if we already have the proteins we can add ``--proteins 3_DASTool/${i}_${i}_proteins.faa``
 for i in `cat FileLists/Samples`; do DAS_Tool -i 2_binning/${i}/Metabat/Metabat_contig_list.txt,2_binning/${i}/Maxbin/Maxbin_contig_list.txt -l Metabat,Maxbin -c ../0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna --db_directory /opt/biolinux/DAS_Tool -o 3_DASTool/${i}/DASTool_${i} --write_bins 1 -t 2; done
 
+for i in `cat FileLists/Samples`; do DAS_Tool -i 2_binning/${i}/Metabat/Metabat_contig_list.txt,2_binning/${i}/Maxbin/Maxbin_contig_list.txt -l Metabat,Maxbin -c ../0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna --db_directory /opt/biolinux/DAS_Tool -o 3_DASTool/${i}/DASTool_${i} --write_bins 1 -t 2; done
+
+
 #gzip the protein files, since they can get rather large
 gzip 3_DASTool/*/*_proteins.faa
 
-#clean up folder name
+#clean up folder name, ie the current path `3_DASTool/NIOZ130/DASTool_NIOZ130_DASTool_bins` is a  bit long
 for i in `cat FileLists/Samples`; do mv 3_DASTool/${i}/DASTool_${i}_DASTool_bins/ 3_DASTool/${i}/bins ; done
 
 #check the bin IDs
@@ -1113,7 +1106,7 @@ NIOZ114: 3<br/>
 NIOZ118: 2<br/>
 NIOZ130: 2<br/>
 
-When we check the bin names, we can see that the bins come from all different tools, if we would use more binning tools, i.e. include concoct and binsanity, we would see how hard it would be to decide which single tool would be best.
+When we check the bin names, we can see that the bins come from both binning tools, if we would use more binning tools, i.e. include concoct and binsanity, we would see how hard it would be to decide which single tool would be best.
 
 DAS also generates a lot of additional data in its folders:
 
@@ -1133,7 +1126,7 @@ knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pict
 Now, lets make some more informative bin names using our bash magic. Specifically, we want:
 
 - add the ending `fna`, which is more commonly used for MAGs
-- remove unneccassary info that just makes the name longer than it needs to be, i.e. the `contigs` tag in the file header
+- remove unnecessary info that just makes the name longer than it needs to be, i.e. the `contigs` tag in the file header
 - add the sample ID to easily know from which sample the metagenome was assembled from
 
 ```{bash class.source = 'fold-show', eval=FALSE}
@@ -1144,7 +1137,7 @@ for i in `cat FileLists/Samples`; do cp 3_DASTool/${i}/bins/* 3_DASTool/${i}/bin
 #check inital filename
 ll 3_DASTool/*/bins/*f*
 
-#cleanup filenames
+#cleanup filenames: adjust the extension, remove the contig info and add the sample ID into the file header
 for i in `cat FileLists/Samples`; do perl ../scripts/rename.pl  "s/fa/fna/" 3_DASTool/${i}/bins/*.fa; done
 
 for i in `cat FileLists/Samples`; do perl ../scripts/rename.pl  "s/_sub.contigs\./\./" 3_DASTool/${i}/bins/*.fna; done
@@ -1227,6 +1220,11 @@ We can now see that the header looks sth like this: `>NIOZ114_mb_b2-NIOZ114_sc48
 
 Notice: Again, this step might take a bit to compute. So feel free to revisit code or go through the additional info we provide on CheckM and possible other tools to estimate genome completeness.
 
+<div class="alert-danger">
+Unfortunately, CheckM is not installed on the severs. However, we still list all relevant code since it is a key program to check bin quality. Install instructions can be found [here](https://github.com/Ecogenomics/CheckM/wiki/Installation#how-to-install-checkm) <br/><br/>
+
+</div>
+
 ```{bash class.source = 'fold-show', eval=FALSE}
 #prepare folder
 mkdir 5_CheckM
@@ -1247,6 +1245,15 @@ awk 'BEGIN{FS="\t"; OFS="\t"}{if(NR==1) $1="BinID"} {print $0 }' 5_CheckM/temp1 
 #check results
 less -S 5_CheckM/CheckM_table_clean.txt
 ```
+
+
+The output from CheckM for our bins looks like this:
+
+
+```{r, echo=FALSE, fig.cap="", out.width = '100%', fig.align="left"}
+knitr::include_graphics("/Users/ninadombrowski/Desktop/WorkingDir/Notebooks/Pictures/Annotations17.png")
+```
+
 
 
 **Question**:
@@ -1301,7 +1308,6 @@ gtdbtk classify_wf --genome_dir 4_FinalBins/renamed --out_dir 6_Gtdbtk --cpus 2
 
 #reset env to default
 conda deactivate
-
 ```
 
 **Question**:
