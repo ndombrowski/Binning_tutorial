@@ -75,9 +75,8 @@ If you generate your own assembly, we strongly recommend that your contigs have 
 
 Unfortunately, DAS Tool is not installed on the cluster. As a workaround we will provide two options:
 
-1. All the output data is provided in the zenodo repository found [here](https://zenodo.org/deposit/6518160) . Specifically, you can download the folder Example_Data.tar.gz and have a look at how the output from DAS Tool looks like in the folder 3_DASTool and use the files in 4_FinalBins to finish with the last small steps summarizing the genome statistics.
+1. All the output data is provided in the zenodo repository found [here](https://zenodo.org/record/6518160#.YnomjelBxcA). Specifically, you can download the folder Example_Data.tar.gz and have a look at how the output from DAS Tool looks like in the folder 3_DASTool and use the files in 4_FinalBins to finish with the last small steps summarizing the genome statistics.
 2. You can download the tool itself [here](https://github.com/cmks/DAS_Tool) and the installation instruction can be found further down in the documentation when you follow the link. From the test I ran on my Mac, the conda install did not work, but the brew and docker installs look good. If you use the docker setup you might just need to run the program 3 times for each of the 3 assemblies instead of using the for-loop.
-
 
 
 **General info on this tutorial**
