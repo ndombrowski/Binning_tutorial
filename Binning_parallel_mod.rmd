@@ -36,6 +36,7 @@ editor_options:
 
 
 ```{r knitr setup, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
+#setup working environment
 library(knitr)
 library(kableExtra)
 options(knitr.table.format = "html")
