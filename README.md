@@ -1,5 +1,7 @@
 # `Description` 
 
+[![DOI](https://zenodo.org/badge/457334153.svg)](https://zenodo.org/badge/latestdoi/457334153)
+
 Tutorial to generate bins. The html version can be found [here](https://ndombrowski.github.io/Binning_tutorial//index.html).
 
 The goal of this tutorial is to: 
@@ -17,5 +19,5 @@ For this tutorial we work with assemblies (and the raw reads) from 3 metagenomes
 
 # `Cite`
 
-If you found this tutorial useful and use it in your work, feel free to add a link to this repository to your methods section.
+If you found this tutorial useful and use it in your work and you reuse some code feel free to add a link to this repository to your methods section.
 
