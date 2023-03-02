@@ -1,4 +1,4 @@
-# Binning
+# `Description` 
 
 Tutorial to generate bins. The html version can be found [here](https://ndombrowski.github.io/Binning_tutorial//index.html).
 
@@ -15,4 +15,7 @@ The goal of this tutorial is to:
 
 For this tutorial we work with assemblies (and the raw reads) from 3 metagenomes. The reason to include more than one metagenome is that most binning tools take into account sequence information as well as coverage information, which make use of having data from several metagenomes (i.e. depth profiles in our case).
 
+# `Cite`
+
+If you found this tutorial useful and use it in your work, feel free to add a link to this repository to your methods section.
 
