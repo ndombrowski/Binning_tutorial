@@ -4,3 +4,4 @@ for_zenodo/
 Bins/*
 depth_files/*
 *fasta
+Bins/.DS_Store
