@@ -1,2 +1,6 @@
 *.*
 !.gitignore
+for_zenodo/
+Bins/*
+depth_files/*
+*fasta
