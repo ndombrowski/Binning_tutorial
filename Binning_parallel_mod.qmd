@@ -135,7 +135,7 @@ In the code below we use an environmental variable to the folder with the data t
 :::
 
 
-If you work on this tutorial outside of the NIOZ tutorial download the data from [zenodo](https://zenodo.org/record/6518160#.ZBMD2NDMJD8). Detailed instructions can be found below. 
+If you work on this tutorial outside of the NIOZ tutorial download the data from [zenodo](https://zenodo.org/record/7759615#.ZBrZy9DMJD8). Detailed instructions can be found below. 
 
 ```{bash}
 #set variable for the wdir, personal user directory and folder with the example data
@@ -183,13 +183,19 @@ wdir="/export/lv1/user/ndombrowski/Binning"
 cd $wdir
 
 #download the data
-curl "https://zenodo.org/record/4680187/files/0_assembly_and_reads.tar.gz?download=1" --output 0_assembly_and_reads.tar.gz
-curl "https://zenodo.org/record/4680187/files/1_mapping.tar.gz?download=1" --output 1_mapping.tar.gz
-curl "https://zenodo.org/record/4680187/files/scripts.tar.gz?download=1" --output scripts.tar.gz
+curl "https://zenodo.org/record/7759615/files/0_assembly_and_reads.tar.gz?download=1" --output 0_assembly_and_reads.tar.gz
+curl "https://zenodo.org/record/7759615/files/1_mapping.tar.gz?download=1" --output 1_mapping.tar.gz
 
 #unzip the data
-tar xvzf *.tar.gz
+ls *.gz |xargs -n1 tar -xzf
 
+#get custom scripts from github
+mkdir scripts
+wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/main/scripts/length%2BGC.pl -O scripts/length+GC.pl
+wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/main/scripts/rename.pl -O scripts/rename.pl
+
+#cleanup folder
+rm *gz
 ```
 
 </details>
@@ -899,6 +905,13 @@ for i in `cat FileLists/SampleList`; do rm -r 2_binning/${i}/Concoct/bins/backup
 
 
 ### Start binning
+
+:::{.callout-note}
+For people working on the NIOZ servers:
+
+In case the code does not run when using run_MaxBin.pl try executing `deactivate conda` before running the code.
+:::
+
 
 ```{bash}
 #create dirs
