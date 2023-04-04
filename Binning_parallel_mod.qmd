@@ -153,8 +153,6 @@ ln -s $download_dir/scripts/ .
 ```
 
 
-**ToDo: Double check that code is working and that the right files are on Zenodo**
-
 <details>
     <summary>Click me if you use the tutorial outside of the workshop and want to use the Zenodo files</summary>
 
@@ -170,12 +168,13 @@ curl "https://zenodo.org/record/7759615/files/0_assembly_and_reads.tar.gz?downlo
 curl "https://zenodo.org/record/7759615/files/1_mapping.tar.gz?download=1" --output 1_mapping.tar.gz
 
 #unzip the data
-ls *.gz |xargs -n1 tar -xzf
+ls *.gz | xargs -n1 tar -xzf
 
 #get custom scripts from github
 mkdir scripts
 wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/main/scripts/length%2BGC.pl -O scripts/length+GC.pl
 wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/main/scripts/rename.pl -O scripts/rename.pl
+wget https://raw.githubusercontent.com/ndombrowski/Binning_tutorial/main/scripts/number_bins_consistently.py -o scripts/number_bins_consistently.py
 
 #cleanup folder
 rm *gz
@@ -250,12 +249,14 @@ More specifically, you only need to run code that does NOT start with an `#` and
 for sample in `cat FileLists/SampleList`; do bwa index 0_assembly_and_reads/2_assembly/${sample}/${sample}_contigs_2500.fna; done
 
 #prepare folders in which we want to store the results from bwa, one for each metagenome we are looking at
-#mkdir 1_mapping
-
-#for i in `cat FileLists/SampleList`; do mkdir 1_mapping/$i; done
+mkdir 1_mapping
+for i in `cat FileLists/SampleList`; do mkdir 1_mapping/$i; done
 
 #create 1_mapping files (just do this on your own time, not during the actual exercise)
 #while read sample1 sample2; do bwa mem -t 10 0_assembly_and_reads/2_assembly/${sample1}/${sample1}_contigs_2500.fna 0_assembly_and_reads/1_reads/${sample2}_R1_paired.fastq.gz 0_assembly_and_reads/1_reads/${sample2}_R2_paired.fastq.gz | gzip -3 >  1_mapping/${sample1}/${sample1}_v_${sample2}.sam.gz; done < FileLists/SampleList_matching
+
+#check what files were generated in this step
+ll 1_mapping/NIOZ114/*
 ```
 
 For each metagenome the step `bwa mem`, generates a new folder, each contains three files:
@@ -322,19 +323,18 @@ After generating the link our first step will be to count how many reads were ma
 cd 1_mapping
 
 #create bam files and make index
-#in case this code does not run, try running `conda deactivate` before this command
 #ls N*/*sam.gz | parallel -j3 "samtools view -hb -F4 {} | samtools sort -o {.}_sort.bam - ; samtools index {.}_sort.bam"
 
 #count how many reads mapped to our contigs
 #the output file contains the following info: contig ID, read length, #mapped reads and # unmapped reads
 for sample in `ls N*/*_sort.bam`; do samtools idxstats ${sample} > ${sample}_mapped.txt ; done
 
+#return to wdir
 cd ..
 
 #check what we did by looking at the output
 #each column contains the following info: contig, contig length, mapped reads, unmapped reads
 head 1_mapping/NIOZ114/NIOZ114_v_NIOZ114.sam_sort.bam_mapped.txt
-
 ```
 
 The mapping results should look similar to the example below. The columns give the following info for each contig:
@@ -378,13 +378,13 @@ If you run this yourself on your own assemblies, replace `NIOZ114_sc5544_1` with
 samtools depth 1_mapping/NIOZ114/NIOZ114_v_NIOZ114.sam_sort.bam  > 1_mapping/NIOZ114/NIOZ114_depth.txt.gz
 
 #lets extract the depth info for a specific contig
-zcat 1_mapping/NIOZ114/NIOZ114_depth.txt.gz | egrep '^NIOZ114_sc5544_1'>  1_mapping/NIOZ114//NIOZ114_sc1105_1_depth.txt.gz
+zcat 1_mapping/NIOZ114/NIOZ114_depth.txt.gz | egrep '^NIOZ114_sc5544_1'>  1_mapping/NIOZ114//NIOZ114_single_contig_depth.txt.gz
 
 #open R
 R
 
 #read the data in
-x <- read.table('1_mapping/NIOZ114/NIOZ114_sc1105_1_depth.txt.gz', sep='\t', header=FALSE,  strip.white=TRUE)
+x <- read.table('1_mapping/NIOZ114/NIOZ114_single_contig_depth.txt.gz', sep='\t', header=FALSE,  strip.white=TRUE)
 
 # Look at the beginning of the data we have just read in
 head(x)
@@ -474,9 +474,6 @@ A comment on why we do not use the output from samtools that we have used before
 
 
 
-
-
-
 # Prepare the depth files
 
 Different binning tools generally need different input files. This is also the case for the coverage binners we will use and how the want the coverage info to look like. We will use some bash to prepare the depth files for each specific tool.
@@ -556,7 +553,6 @@ for i in `cat FileLists/SampleList`; do  Binsanity-profile -i 0_assembly_and_rea
 head 1_mapping/NIOZ114/NIOZ114_depth_binsanity.cov
 ```
 
-
 If you run this on your own, the coverage files, i.e. `1_mapping/NIOZ114/NIOZ114_depth_binsanity.cov`, should look something like this:
 
 ![](C:/Users/ndmic/WorkingDir/Notebooks/Pictures/binning6.png){width=90% fig-align="left"}
@@ -585,7 +581,7 @@ cat 1_mapping/N*/*_depth_maxbin.txt > 0_assembly_and_reads/2_assembly/AllContigs
 wc -l 0_assembly_and_reads/2_assembly/AllContigs/All_contigs_2500_depth.txt
 
 '''
-The file contains 1245 rows, which should be consistent with the number of contigs we have
+The file contains 1245 rows, which should be consistent with the total number of contigs we have
 '''
 
 #merge info on depth and length and GC (these files we have generated during the assembly tutorial)
@@ -640,7 +636,7 @@ for i in `cat FileLists/SampleList`; do mkdir 2_binning/$i; done
 
 ## Metabat
 
-[MetaBAT](https://bitbucket.org/berkeleylab/metabat/src/master/): A robust statistical framework for reconstructing genomes from metagenomic data [Kang et al., 2015](https://peerj.com/articles/1165/)
+[MetaBAT](https://bitbucket.org/berkeleylab/metabat/src/master/)is a robust statistical framework for reconstructing genomes from metagenomic data [Kang et al., 2015](https://peerj.com/articles/1165/)
 
 
 ### Start binning
@@ -653,7 +649,8 @@ for i in `cat FileLists/SampleList`; do mkdir 2_binning/${i}/Metabat/bins; done
 #run binning tool
 for i in `cat FileLists/SampleList`; do metabat2 -t 2 -i 0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna -a 1_mapping/${i}/${i}_depth_metabat.txt -o 2_binning/${i}/Metabat/bins; done
 
-#clean files up by restructuring the folders a bit
+#clean files up by moving the bins into another folder
+#the goal here is to have the same folder layout for all bining tools
 for i in `cat FileLists/SampleList`; do mv 2_binning/${i}/Metabat/*fa 2_binning/${i}/Metabat/bins/; done
 
 #check how bins are named
@@ -728,10 +725,10 @@ for i in `cat FileLists/SampleList`; do rename bins. mb_b 2_binning/${i}/Metabat
 #check how bins are named now, after our changes, we now should have mb_b1.fa instead of bins.1.fa
 ll 2_binning/NIOZ1*/Metabat/bins/*fa
 
-#check file header
+#check file header (nothing should have changed here)
 head 2_binning/NIOZ114/Metabat/bins/mb_b1.fa
 
-#count number of bins/metagenome (control that all went alright)
+#count number of bins/metagenome (the numbers should be exactly the same)
 for i in `cat FileLists/SampleList`; do ll 2_binning/${i}/Metabat/bins/*fa | wc -l; done | paste FileLists/SampleList -
 ```
 
@@ -777,7 +774,7 @@ When checking these files, make sure that the updated bin name is used, i.e. we 
 We will NOT run Concoct to keep the tutorial short but if you run this on your own data it is advisable to use several binning tools and concoct would be an example of a binner to use.
 :::
 
-[CONCOCT](https://github.com/BinPro/CONCOCT) : A program for unsupervised binning of metagenomic contigs by using nucleotide composition, coverage data in multiple samples and linkage data from paired end reads [(Alneberg et al., 2014)](https://www.nature.com/articles/nmeth.3103)
+[CONCOCT](https://github.com/BinPro/CONCOCT) is a program for unsupervised binning of metagenomic contigs by using nucleotide composition, coverage data in multiple samples and linkage data from paired end reads [(Alneberg et al., 2014)](https://www.nature.com/articles/nmeth.3103)
 
 ### Start binning
 
@@ -795,14 +792,16 @@ for i in `cat FileLists/SampleList`; do concoct -t 10 --composition_file 0_assem
 #prepare file to get the clustered contigs
 for i in `cat FileLists/SampleList`; do merge_cutup_clustering.py 2_binning/${i}/Concoct/clustering_gt1000.csv > 2_binning/${i}/Concoct/clustering_merged.csv; done
 
-#check if the file looks good
+#check how the file looks good
 head 2_binning/${i}/Concoct/clustering_merged.csv
 
 #extract bins
 for i in `cat FileLists/SampleList`; do extract_fasta_bins.py 0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna 2_binning/${i}/Concoct/clustering_merged.csv --output_path 2_binning/${i}/Concoct/bins; done
 
-#check the fasta header of one bin and the general file names
+#check what files were generated
 ll 2_binning/NIOZ1*/Concoct/bins/*fa
+
+#check how the fasta header looks of a file
 head 2_binning/NIOZ114/Concoct/bins/0.fa 
 
 #count nr bins/sample
@@ -833,9 +832,8 @@ for i in `cat FileLists/SampleList`; do cp 2_binning/${i}/Concoct/bins/* 2_binni
 #cleanup file names
 perl scripts/rename.pl  's/(.*)\/(.*)\/(.*)\//$1\/$2\/$3\/cc_b/' 2_binning/N*/Concoct/bins/*fa
 
-#check if this went ok by looking at the new file name and the fasta header
+#check if this went ok and check how the file names now lool
 ll 2_binning/NIOZ1*/Concoct/bins/*fa
-head 2_binning/NIOZ114/Concoct/bins/cc_b0.fa
 
 #count number of bins/metagenome to confirm all is good
 for i in `cat FileLists/SampleList`; do ll 2_binning/${i}/Concoct/bins/*fa | wc -l; done | paste FileLists/SampleList -
@@ -861,15 +859,15 @@ head 2_binning/NIOZ114/Concoct/Concoct_contig_list.txt
 for i in `cat FileLists/SampleList`; do gzip 2_binning/${i}/Concoct/bins/*fa ; done
 
 #rm backup
-for i in `cat FileLists/SampleList`; do rm -r 2_binning/${i}/Concoct/bins/backup ; done
+for i in `cat FileLists/SampleList`; do rm -rf 2_binning/${i}/Concoct/bins/backup ; done
 ```
+
 
 
 
 ##  Maxbin
 
-[MaxBin](https://sourceforge.net/projects/maxbin/): an automated binning method to recover individual genomes from metagenomes using an expectation-maximization algorith [(Wu et al., 2014)](https://microbiomejournal.biomedcentral.com/articles/10.1186/2049-2618-2-26)
-
+[MaxBin](https://sourceforge.net/projects/maxbin/) is an automated binning method that recovers individual genomes from metagenomes using an expectation-maximization algorithm [(Wu et al., 2014)](https://microbiomejournal.biomedcentral.com/articles/10.1186/2049-2618-2-26)
 
 ### Start binning
 
@@ -881,9 +879,11 @@ for i in `cat FileLists/SampleList`; do mkdir 2_binning/${i}/Maxbin/bins; done
 #run Maxin
 for i in `cat FileLists/SampleList`; do run_MaxBin.pl -thread 2 -contig 0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna -out 2_binning/${i}/Maxbin/mx_b -abund 1_mapping/${i}/${i}_depth_maxbin.txt; done
 
-#check the fasta header of one bin and the general file names
+#check the file names
 ll 2_binning/NIOZ1*/Maxbin/*fasta
-head 2_binning/NIOZ114/Maxbin/mx_b.001.fasta
+
+#check the fasta header
+head $(ls -1 2_binning/NIOZ1*/Maxbin/*fasta | head -1)
 
 #count number of bins/metagenome
 for i in `cat FileLists/SampleList`; do ll 2_binning/${i}/Maxbin/*fasta | wc -l; done | paste FileLists/SampleList -
@@ -914,7 +914,6 @@ for i in `cat FileLists/SampleList`; do rename fasta fa 2_binning/${i}/Maxbin/bi
 
 #check if all is fine
 ll 2_binning/NIOZ*/Maxbin/bins/*fa
-head 2_binning/NIOZ114/Maxbin/bins/mx_b001.fa
 
 #count number of bins/metagenome to confirm all is good
 for i in `cat FileLists/SampleList`; do ll 2_binning/${i}/Maxbin/bins/*fa | wc -l; done | paste FileLists/SampleList -
@@ -1022,7 +1021,7 @@ NIOZ130: 2<br/>
 for i in `cat FileLists/SampleList`; do awk '/>/{sub(">","&"FILENAME"-");sub(/\.fa/,x)}1' 2_binning/${i}/BinSanity/bins/bs* | grep ">" | sed 's/>//g' | awk 'BEGIN{FS="\t";OFS="\t"}{split($1,a,"-")}{print a[2],a[1]}' | awk 'BEGIN{FS="\t";OFS="\t"}{split($2,a,"/")}{print $1,a[5]}' > 2_binning/${i}/BinSanity/Binsanity_contig_list.txt; done
 
 #rm backup
-for i in `cat FileLists/SampleList`; do rm -r 2_binning/${i}/BinSanity/bins/backup ; done
+for i in `cat FileLists/SampleList`; do rm -rf 2_binning/${i}/BinSanity/bins/backup ; done
 
 #gzip fasta files
 for i in `cat FileLists/SampleList`; do gzip 2_binning/${i}/BinSanity/bins/*fa ; done
@@ -1042,7 +1041,7 @@ Now that we ran the different binning tools, we want to find out what tool worke
 
 Notice: 
 
-- Since we did not run BinSanity and Concoct, you need change the second if you want to include these or other tools if you run this on your own
+- Since we did not run BinSanity and Concoct, you need change the second command if you want to include these or other tools if you run this on your own
 - This will take a bit to run, so have patience
 
 ```{bash}
@@ -1140,15 +1139,25 @@ Now we clean things up by:
 mkdir 4_FinalBins
 for i in `cat FileLists/SampleList`; do cp 3_DASTool/${i}/bins/*fna 4_FinalBins; done
 
+#check file names
+ll 4_FinalBins/*fna
+
+#the script below needs some modification to work if you have more than 999 bins/binning tool
+#have a consistent numbering, i.e. we want all numbers have 3 digits
+#python scripts/number_bins_consistently.py 4_FinalBins
+
+#check file names again
+#ll 4_FinalBins/*fna
+
 #make a list with all the bins we have and count the nr of genomes in that list: 5
-ls 4_FinalBins/*fna | cut -f2 -d "/" | sed 's/\.fna//g' > BinList.txt
-wc -l BinList.txt
+ls 4_FinalBins/*fna | cut -f2 -d "/" | sed 's/\.fna//g' > FileLists/BinList.txt
+wc -l FileLists/BinList.txt
 
 #count how many genomes we have --> this should be 5
 ll 4_FinalBins/* | wc -l
 
 #check the fasta header
-head 4_FinalBins/NIOZ114_mx_b001.fna
+head $(ls -1 4_FinalBins/*fna | head -1)
 
 #add in binID into fasta header (that way we can concatenate genomes later into one large file)
 mkdir 4_FinalBins/renamed
@@ -1157,14 +1166,14 @@ cd 4_FinalBins
 for i in *fna; do awk '/>/{sub(">","&"FILENAME"-");sub(/\.fna/,x)}1' $i > renamed/$i; done
 
 #check if everything went alright
-head renamed/NIOZ114_mx_b001.fna
+head $(ls -1 renamed/*fna | head -1)
 
 #if the header looks good, lets remove the old files
 rm -f *fna
 cd ..
 
 #cleanup backup files
-#rm -r 3_DASTool/*/bins/backup
+rm -rf 3_DASTool/*/bins/backup
 ```
 
 We can now see that the header looks something like this: `>NIOZ114_mb_b2-NIOZ114_sc48_1`. It includes the BinID separated with a `-` symbol from the contig ID. This is a general format we will use for everything we have and stick with using either `_` or `-`. The less clutter the easier most workflows will be.
@@ -1194,7 +1203,7 @@ In case this runs for too long, people joining the course at NIOZ can also use a
 mkdir 5_CheckM
 
 #run 5_CheckM
-checkm lineage_wf -x fna -f 5_CheckM/5_CheckM_table.txt -t 2 --pplacer_threads 1 4_FinalBins/renamed 5_CheckM
+checkm lineage_wf -x fna -f 5_CheckM/5_CheckM_table.txt -t 4 --pplacer_threads 1 4_FinalBins/renamed 5_CheckM
 
 #check how the initial file looks like
 head 5_CheckM/5_CheckM_table.txt
@@ -1276,7 +1285,7 @@ export GTDBTK_DATA_PATH=/export/data01/databases/gtdb/release207_v2/
 mkdir 6_Gtdbtk
 
 #run gtdbtk
-gtdbtk classify_wf --genome_dir 4_FinalBins/renamed --out_dir 6_Gtdbtk --cpus 5 --skip_ani_screen
+gtdbtk classify_wf --genome_dir 4_FinalBins/renamed --out_dir 6_Gtdbtk --cpus 20 --skip_ani_screen
 
 #reset env to default
 conda deactivate
@@ -1334,7 +1343,7 @@ mkdir 7_Stats
 mkdir 7_Stats/Length
 
 #calculate stats for each bin
-for i in `cat BinList.txt`; do perl scripts/length+GC.pl 4_FinalBins/renamed/${i}.fna > 7_Stats/Length/${i}_length.txt; done
+for i in `cat FileLists/BinList.txt`; do perl scripts/length+GC.pl 4_FinalBins/renamed/${i}.fna > 7_Stats/Length/${i}_length.txt; done
 
 #combine indiv file into one larger file and view content of the file
 cat 7_Stats/Length/*txt >  7_Stats/Length_Bin_length.txt
@@ -1371,7 +1380,7 @@ grep -c ">" 0_assembly_and_reads/2_assembly/AllContigs/All_contigs_2500.fna
 wc -l 7_Stats/Length_Bin_length_final.txt
 ```
 
-Initially we have 1245 contigs, of these 1196 contigs were binned
+Initially we have 1245 contigs, of these 1195 contigs were binned
 
 </details>
 
