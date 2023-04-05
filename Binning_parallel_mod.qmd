@@ -121,6 +121,7 @@ If you work on this tutorial outside of the NIOZ tutorial download the data from
 
 ```{bash}
 #set variable for the working directory, personal user directory and folder with the example data
+#here: change the user_name to whatever your folder name is in the bioinfo_workshop folder
 user_name="ndombrowski"
 wdir="/export/lv3/scratch/bioinformatics_workshop/Users/"
 download_dir="/export/lv3/scratch/bioinformatics_workshop/S11_binning"
@@ -145,9 +146,6 @@ ln -sf $(pwd)/../Assemblies/3_trimmomatic/NIOZ1* 0_assembly_and_reads/1_reads/
 #(which are part of the files generated during the assembly tutorial)
 ln -sf $(pwd)/../Assemblies/4_assemblies/megahit/* 0_assembly_and_reads/2_assembly/
 
-#create a symbolic link to mapping files
-ln -s $download_dir/1_mapping/ .
-
 #create symbolic link to the scripts folder
 ln -s $download_dir/scripts/ .
 ```
@@ -165,7 +163,9 @@ cd $wdir
 
 #download the data
 curl "https://zenodo.org/record/7759615/files/0_assembly_and_reads.tar.gz?download=1" --output 0_assembly_and_reads.tar.gz
-curl "https://zenodo.org/record/7759615/files/1_mapping.tar.gz?download=1" --output 1_mapping.tar.gz
+
+#if needed, this is the link to download the mapping data
+#curl "https://zenodo.org/record/7759615/files/1_mapping.tar.gz?download=1" --output 1_mapping.tar.gz
 
 #unzip the data
 ls *.gz | xargs -n1 tar -xzf
@@ -232,17 +232,11 @@ Throughout this tutorial a lot of files will get generated and its recommended t
 
 ## Map the reads
 
-<span style="color:red;font-size:20px">**Important info, please read!**</span>
+:::{.callout-note}
+The read mapping will take a few minutes, so have patience!
 
-:::{.callout-warning}
-The mapping step takes a lot of time and the data from the read mapping is rather large.  
-
-Therefore, you will NOT run the read mapping step with `bwa mem` yourself, but use the data you have created a symbolic link for in the code above OR downloaded from the repository in the first steps. After the tutorial feel free to run the code under #create 1_mapping files but watch the resources on your cluster before doing so. If you run this yourself, you can adjust the numbers of cores with `-t 10` but keep in mind to set this number based on what your system allows. 
-
-More specifically, you only need to run code that does NOT start with an `#` and the assembly and read mapping data is provided by us.  
-
+While you wait, we recommend that you scroll down and read through the explanations on what is happening when running BWA.
 :::
-
 
 ```{bash}
 #create an index for our assemblies
@@ -253,10 +247,10 @@ mkdir 1_mapping
 for i in `cat FileLists/SampleList`; do mkdir 1_mapping/$i; done
 
 #create 1_mapping files (just do this on your own time, not during the actual exercise)
-#while read sample1 sample2; do bwa mem -t 10 0_assembly_and_reads/2_assembly/${sample1}/${sample1}_contigs_2500.fna 0_assembly_and_reads/1_reads/${sample2}_R1_paired.fastq.gz 0_assembly_and_reads/1_reads/${sample2}_R2_paired.fastq.gz | gzip -3 >  1_mapping/${sample1}/${sample1}_v_${sample2}.sam.gz; done < FileLists/SampleList_matching
+while read sample1 sample2; do bwa mem -t 4 0_assembly_and_reads/2_assembly/${sample1}/${sample1}_contigs_2500.fna 0_assembly_and_reads/1_reads/${sample2}_R1_paired.fastq.gz 0_assembly_and_reads/1_reads/${sample2}_R2_paired.fastq.gz | gzip -3 >  1_mapping/${sample1}/${sample1}_v_${sample2}.sam.gz; done < FileLists/SampleList_matching
 
 #check what files were generated in this step
-ll 1_mapping/NIOZ114/*
+ll 1_mapping/NIOZ114/*sam.gz
 ```
 
 For each metagenome the step `bwa mem`, generates a new folder, each contains three files:
@@ -267,7 +261,7 @@ The three files contained in each folder are all the different mapping combinati
 
 **Info on the used code**:
 
-[BWA](http://bio-bwa.sourceforge.net/bwa.shtml) is a short read aligner that can take a reference genome or assembly from a metagenome and map single- or paired-end sequence data to it [(Li et al., 2009)](https://pubmed.ncbi.nlm.nih.gov/19451168/). There are other tools out there, such as bowtie, so you can always switch this with your favorite mapping tool. 
+[BWA](http://bio-bwa.sourceforge.net/bwa.shtml) is a short read aligner that can take a reference genome or assembly from a metagenome and map single- or paired-end sequence data to it [(Li et al., 2009)](https://pubmed.ncbi.nlm.nih.gov/19451168/). There are other tools out there, such as bowtie, so you can always switch to your favorite mapping tool. 
 
 To run bwa we only need to provide:
 
@@ -306,16 +300,11 @@ If we look at our files, the header should look like shown below and defines rea
 
 Next, we want to convert the file type from sam to bam and count how many reads are recruited by each contig with samtools. The bam format is a compressed output of the sam format and helpful for storing sam files and getting information of the reads. 
 
-**Your job starts here!**
-
-:::{.callout-warning}
+:::{.callout-note}
 Running samtools takes a bit of time. 
 
-Therefore, we already provide you the indexed samfiles that are normally created with the step `#create bam files and make index`. The files are in the folder called `1_mapping` to which you generated a symbolic link via the `ln` command before.
-
-After generating the link our first step will be to count how many reads were mapped.
+While waiting, scroll down below and read about what samtools actually does and what the individual arguments do.
 :::
-
 
 
 ```{bash}
@@ -323,7 +312,7 @@ After generating the link our first step will be to count how many reads were ma
 cd 1_mapping
 
 #create bam files and make index
-#ls N*/*sam.gz | parallel -j3 "samtools view -hb -F4 {} | samtools sort -o {.}_sort.bam - ; samtools index {.}_sort.bam"
+ls N*/*sam.gz | parallel -j3 "samtools view -hb -F4 {} | samtools sort -o {.}_sort.bam - ; samtools index {.}_sort.bam"
 
 #count how many reads mapped to our contigs
 #the output file contains the following info: contig ID, read length, #mapped reads and # unmapped reads
@@ -375,10 +364,10 @@ If you run this yourself on your own assemblies, replace `NIOZ114_sc5544_1` with
 
 ```{bash}
 #get the read depth for all positions of the assembly
-samtools depth 1_mapping/NIOZ114/NIOZ114_v_NIOZ114.sam_sort.bam  > 1_mapping/NIOZ114/NIOZ114_depth.txt.gz
+samtools depth 1_mapping/NIOZ114/NIOZ114_v_NIOZ114.sam_sort.bam | gzip  > 1_mapping/NIOZ114/NIOZ114_depth.txt.gz
 
 #lets extract the depth info for a specific contig
-zcat 1_mapping/NIOZ114/NIOZ114_depth.txt.gz | egrep '^NIOZ114_sc5544_1'>  1_mapping/NIOZ114//NIOZ114_single_contig_depth.txt.gz
+zcat 1_mapping/NIOZ114/NIOZ114_depth.txt.gz | egrep '^NIOZ114_sc5544_1' >  1_mapping/NIOZ114//NIOZ114_single_contig_depth.txt.gz
 
 #open R
 R
@@ -514,7 +503,7 @@ Maxbin does not really use coverage info across samples, so we only get the cove
 #get coverage info for the right samples
 for i in `cat FileLists/SampleList`; do awk -F '\t' -v col="${i}_v_${i}.sam_sort.bam" 'NR==1{for (i=1; i<=NF; i++) if ($i == col){c=i; break}}{print $1"\t"$c}' 1_mapping/${i}/${i}_depth_metabat.txt | sed 1d > 1_mapping/${i}/${i}_depth_maxbin.txt; done
 
-#check fileq
+#check file
 head 1_mapping/NIOZ114/NIOZ114_depth_maxbin.txt 
 ```
 
@@ -679,8 +668,14 @@ In short: Think about naming as soon as possible in a project and make sure that
 
 :::{.callout-note}
 
-**A small comment reminder for using pipes in bash:**
-A pipe is a form of redirection (transfer of standard output to some other destination). The code block below is doing the same as in `for i in `cat FileLists/SampleList`; do ll 2_binning/${i}/Metabat/bins/*fa | wc -l; done | paste FileLists/SampleList -` but in a step by step manner.
+**A small reminder for using pipes in bash:**
+A pipe is a form of redirection (transfer of standard output to some other destination). The code block below is doing the same as when running this code:
+
+```{bash}
+for i in `cat FileLists/SampleList`; do ll 2_binning/${i}/Metabat/bins/*fa | wc -l; done | paste FileLists/SampleList -
+```
+
+but in a step by step manner:
 
 ```{bash}
 #1. lets print the file names we generated and store the output in a new file. For each metagenome it stores a list of bins generated
@@ -765,6 +760,8 @@ The contig list, which we stored in `2_binning/NIOZ114/Metabat/Metabat_contig_li
 - Info what bin each contig was assigned to (i.e. mb_b1)
 
 ![](C:/Users/ndmic/WorkingDir/Notebooks/Pictures/binning8.png){width=40% fig-align="left"}
+
+
 When checking these files, make sure that the updated bin name is used, i.e. we want to see something like mb_b1 and nothing generic like bin1.
 
 
@@ -787,7 +784,7 @@ for i in `cat FileLists/SampleList`; do mkdir 2_binning/${i}/Concoct; done
 for i in `cat FileLists/SampleList`; do mkdir 2_binning/${i}/Concoct/bins; done
 
 #run concoct v1.0.0
-for i in `cat FileLists/SampleList`; do concoct -t 10 --composition_file 0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna --coverage_file 1_mapping/${i}/${i}_depth_concoct.txt -b 2_binning/${i}/Concoct; done
+for i in `cat FileLists/SampleList`; do concoct -t 4 --composition_file 0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna --coverage_file 1_mapping/${i}/${i}_depth_concoct.txt -b 2_binning/${i}/Concoct; done
 
 #prepare file to get the clustered contigs
 for i in `cat FileLists/SampleList`; do merge_cutup_clustering.py 2_binning/${i}/Concoct/clustering_gt1000.csv > 2_binning/${i}/Concoct/clustering_merged.csv; done
@@ -1050,7 +1047,7 @@ mkdir 3_DASTool
 for i in `cat FileLists/SampleList`; do mkdir 3_DASTool/${i}; done
 
 #run DAS, if we already have the proteins we can add ``--proteins 3_DASTool/${i}_${i}_proteins.faa``
-for i in `cat FileLists/SampleList`; do DAS_Tool -i 2_binning/${i}/Metabat/Metabat_contig_list.txt,2_binning/${i}/Maxbin/Maxbin_contig_list.txt -l Metabat,Maxbin -c 0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna --db_directory /opt/biolinux/DAS_Tool -o 3_DASTool/${i}/DASTool_${i} --write_bins 1 -t 2; done
+for i in `cat FileLists/SampleList`; do DAS_Tool -i 2_binning/${i}/Metabat/Metabat_contig_list.txt,2_binning/${i}/Maxbin/Maxbin_contig_list.txt -l Metabat,Maxbin -c 0_assembly_and_reads/2_assembly/${i}/${i}_contigs_2500.fna --db_directory /opt/biolinux/DAS_Tool -o 3_DASTool/${i}/DASTool_${i} --write_bins 1 -t 4; done
 
 #gzip the protein files, since they can get rather large
 gzip 3_DASTool/*/*_proteins.faa
@@ -1093,6 +1090,7 @@ Now, lets make some more informative bin names using our bash magic. Specificall
 - ensure all files end with the extension `fna`, which is more commonly used for MAGs
 - remove unnecessary info that just makes the name longer than it needs to be, i.e. the `contigs` tag in the file header
 - add the sample ID to easily know from which sample the metagenome was assembled from
+- When we check the file names, we also see that we have two times then name `mx_b002.contigs.fa` for NIOZ130 and NIOZ114 samples. Duplicated are not good and can easily create a confusion, so that is something else we want to change.
 
 ```{bash}
 #make backup of your files
@@ -1263,7 +1261,7 @@ We have not tested this yet, but GUNC is an alternative that looks at the full g
 For this tutorial we will NOT run this step since it takes long to run. 
 However, it is a good tool to keep in mind if you ever do this analysis on your own data!
 
-To have a look at the output you can create a link to example files:
+For now we will provide you with example files but feel free to revisit the actual code at a later point:
 
 ```{bash}
 ln -s $download_dir/6_Gtdbtk .
@@ -1299,6 +1297,8 @@ The key information we get should look something like this:
 
 **Question**:
 
+Go into the folder that contains the GTDB results and try to answer:
+
 - What taxa are our MAGs assigned to?
 - Based on Gtdb did we find a new phylum, class, order, ...?
 
@@ -1312,7 +1312,7 @@ less -S  6_Gtdbtk/classify/gtdbtk.ar53.summary.tsv
 less -S  6_Gtdbtk/classify/gtdbtk.bac120.summary.tsv
 ```
 
-We have bins from the Altarchaeota, Dehalococcoides and Planctomycetota, None of them is assigned to a cultured representative above the  family level. We see this since there is no assignment at the genus or species level.
+We have bins from the Altarchaeota, Cloacimonadota and Planctomycetota, None of them is assigned to a cultured representative above the  family level. We see this since there is no specific name assignment at the genus or species level. Generic names, such as JACNJR01, are more typically used as placeholders for as of yet uncultured microbes.
 
 </details>
 
